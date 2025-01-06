@@ -1,16 +1,37 @@
-# adb_wifi_connector
+# ADB WiFi 连接器
 
-A new Flutter project.
+一个基于 Flutter 开发的 ADB WiFi 连接工具，可以帮助开发者更方便地管理和连接 Android 设备。
 
-## Getting Started
+## 主要功能
 
-This project is a starting point for a Flutter application.
+- 支持通过 WiFi 连接 Android 设备进行调试
+- 系统托盘常驻，方便快速操作
+- 自动保存连接历史记录
+- 支持多设备同时连接
+- 实时显示设备连接状态
+- 支持一键连接/断开设备
 
-A few resources to get you started if this is your first Flutter project:
+## 系统要求
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Windows 操作系统
+- 已安装 ADB 工具
+- Android 设备需开启 USB 调试并与电脑在同一局域网
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 使用说明
+
+1. 确保 Android 设备已开启 USB 调试模式
+2. 通过 USB 连接设备并授权
+3. 输入设备 IP 地址进行连接
+4. 连接成功后即可拔掉 USB 线，使用 WiFi 调试
+
+## 开发环境
+
+- Flutter >= 3.0.0
+- Dart SDK >= 3.0.0
+- Windows SDK
+
+## 依赖项
+
+- window_manager: ^0.3.0
+- system_tray: ^2.0.3
+- cupertino_icons: ^1.0.2
