@@ -29,9 +29,11 @@ void main() async {
 // 添加开机自启动相关函数
 Future<void> setupAutoStart() async {
   if (Platform.isWindows) {
-    final startupPath = '${Platform.environment['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup';
+    final startupPath =
+        '${Platform.environment['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup';
     final shortcutPath = '$startupPath\\ADB WiFi连接器.lnk';
-    final exePath = '${Directory.current.path}\\build\\windows\\runner\\Release\\adb_wifi_connector.exe';
+    final exePath =
+        '${Directory.current.path}\\build\\windows\\runner\\Release\\adb_wifi_connector.exe';
 
     try {
       final shortcut = File(shortcutPath);
@@ -46,7 +48,7 @@ Future<void> setupAutoStart() async {
           \$SC.Save();
           '''
         ]);
-        
+
         if (result.exitCode != 0) {
           print('创建开机自启动快捷方式失败: ${result.stderr}');
         }
@@ -83,7 +85,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
   final AdbService _adbService = AdbService();
   final SystemTray _systemTray = SystemTray();
   final Menu _menu = Menu();
-  String _status = '未连接';
   List<String> _devices = [];
   List<String> _history = [];
   final TextEditingController _ipController = TextEditingController();
@@ -99,7 +100,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     await _loadHistory();
     await _initializeAdb();
     await _initSystemTray();
-    
+
     // 启动时自动最小化到托盘
     if (_history.isNotEmpty) {
       await windowManager.hide();
@@ -139,10 +140,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<void> _autoConnectDevices() async {
     if (_history.isEmpty) return;
-    
-    setState(() {
-      _status = '正在尝试连接设备...';
-    });
 
     for (String ip in _history) {
       try {
@@ -160,7 +157,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<void> _saveHistory(String ip) async {
     if (ip.trim().isEmpty) return;
-    
+
     setState(() {
       if (!_history.contains(ip)) {
         _history.insert(0, ip);
@@ -187,7 +184,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
     final devices = await _adbService.getConnectedDevices();
     setState(() {
       _devices = devices;
-      _status = devices.isEmpty ? '未连接设备' : '已连接 ${devices.length} 个设备';
     });
     await _updateTrayMenu();
   }
@@ -197,7 +193,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
       // 获取可执行文件所在目录
       final exePath = Platform.resolvedExecutable;
       final exeDir = Directory(exePath).parent.path;
-      
+
       // 构建图标路径
       String iconPath = Platform.isWindows
           ? '$exeDir\\data\\flutter_assets\\assets\\app_icon.ico'
@@ -218,7 +214,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
       // 先销毁可能存在的旧实例
       await _systemTray.destroy();
-      
+
       // 重新初始化系统托盘
       await _systemTray.initSystemTray(
         title: "ADB WiFi 连接器",
@@ -229,7 +225,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
       await Future.delayed(const Duration(milliseconds: 500));
       await _systemTray.setToolTip("ADB WiFi 连接器");
       await _updateTrayMenu();
-      
+
       // 注册事件处理
       _systemTray.registerSystemTrayEventHandler((eventName) {
         if (eventName == kSystemTrayEventClick) {
@@ -247,11 +243,12 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<void> _updateTrayMenu() async {
     List<MenuItemBase> items = [
-      MenuItemLabel(label: '显示窗口', onClicked: (menuItem) => windowManager.show()),
+      MenuItemLabel(
+          label: '显示窗口', onClicked: (menuItem) => windowManager.show()),
       MenuSeparator(),
       MenuItemLabel(label: '设备列表', enabled: false),
     ];
-    
+
     // 合并历史记录和当前设备
     List<String> allDevices = [..._history];
     for (String device in _devices) {
@@ -273,7 +270,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
         ),
       );
     }
-    
+
     items.addAll([
       MenuSeparator(),
       MenuItemLabel(label: '退出', onClicked: (menuItem) => _quit()),
@@ -286,6 +283,25 @@ class _HomePageState extends State<HomePage> with WindowListener {
   void _startDevicePolling() {
     Future.doWhile(() async {
       await _updateDeviceList();
+      // 获取当前设备列表
+      final _devices = await _adbService.getConnectedDevices();
+      // 检查设备IP并连接到ip:5555
+      for (String device in _devices) {
+        if (!device.endsWith(':5555')) {
+          try {
+            await _adbService.open5555port(device);
+            final ips = await _adbService.getDeviceIps(device);
+            if (ips != null && ips.isNotEmpty) {
+              for (final ip in ips) {
+                await _adbService.connectDevice(ip);
+                print('连接设备: $ip');
+              }
+            }
+          } catch (e) {
+            print('获取设备IP或连接失败: $device - $e');
+          }
+        }
+      }
       await Future.delayed(const Duration(seconds: 5));
       return true;
     });
@@ -297,10 +313,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
       for (String device in _devices) {
         await _adbService.disconnectDevice(device);
       }
-      
+
       // 销毁系统托盘
       await _systemTray.destroy();
-      
+
       // 强制退出程序
       exit(0);
     } catch (e) {
@@ -356,7 +372,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Text('状态: $_status'),
+            Text('首次连接或重启手机之后需要用USB连接设备'),
             const SizedBox(height: 20),
             TextField(
               controller: _ipController,
@@ -377,7 +393,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 itemBuilder: (context, index) {
                   final device = allDevices[index];
                   final bool isConnected = _devices.contains(device);
-                  
+
                   return ListTile(
                     title: Text(device),
                     subtitle: Text(isConnected ? '已连接' : '未连接'),
@@ -420,4 +436,4 @@ class _HomePageState extends State<HomePage> with WindowListener {
       ),
     );
   }
-} 
+}
