@@ -85,9 +85,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
   final AdbService _adbService = AdbService();
   final SystemTray _systemTray = SystemTray();
   final Menu _menu = Menu();
-  List<String> _devices = [];
   List<String> _history = [];
   final TextEditingController _ipController = TextEditingController();
+  List<String> _devices = [];
 
   @override
   void initState() {
@@ -181,10 +181,15 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _updateDeviceList() async {
-    final devices = await _adbService.getConnectedDevices();
+    _devices = await _adbService.getConnectedDevices();
     setState(() {
-      _devices = devices;
+      // 更新状态
     });
+    for (String device in _devices) {
+      if (!_history.contains(device)) {
+        _history.add(device);
+      }
+    }
     await _updateTrayMenu();
   }
 
@@ -248,17 +253,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
       MenuSeparator(),
       MenuItemLabel(label: '设备列表', enabled: false),
     ];
-
-    // 合并历史记录和当前设备
-    List<String> allDevices = [..._history];
-    for (String device in _devices) {
-      if (!allDevices.contains(device)) {
-        allDevices.add(device);
-      }
-    }
-
     // 添加所有设备到菜单
-    for (String device in allDevices) {
+    for (String device in _history) {
       final bool isConnected = _devices.contains(device);
       items.add(
         MenuItemCheckbox(
@@ -283,25 +279,44 @@ class _HomePageState extends State<HomePage> with WindowListener {
   void _startDevicePolling() {
     Future.doWhile(() async {
       await _updateDeviceList();
-      // 获取当前设备列表
-      final _devices = await _adbService.getConnectedDevices();
+
+      print('获取当前连接的设备...');
+
       // 检查设备IP并连接到ip:5555
       for (String device in _devices) {
         if (!device.endsWith(':5555')) {
+          print('处理设备: $device');
           try {
-            await _adbService.open5555port(device);
+            if (!_history.contains(device)) {
+              print('打开设备 $device 的5555端口...');
+              await _adbService.open5555port(device);
+            }
+
+            print('获取设备 $device 的IP地址...');
             final ips = await _adbService.getDeviceIps(device);
             if (ips != null && ips.isNotEmpty) {
+              print('获取到设备IP: $ips');
               for (final ip in ips) {
-                await _adbService.connectDevice(ip);
-                print('连接设备: $ip');
+                if (!_history.contains(device)) {
+                  print('跳过设备 $device,因为它不在已连接设备或历史记录中');
+                  continue;
+                }
+                print('尝试连接到IP: $ip');
+                _adbService.connectDevice(ip);
+                print('成功连接到设备: $ip');
               }
+            } else {
+              print('未获取到设备 $device 的IP地址');
             }
           } catch (e) {
             print('获取设备IP或连接失败: $device - $e');
           }
+        } else {
+          print('跳过已经是IP形式的设备: $device');
         }
       }
+      await _updateDeviceList();
+
       await Future.delayed(const Duration(seconds: 5));
       return true;
     });
@@ -355,15 +370,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    // 确保历史记录在前面显示
-    List<String> allDevices = [..._history];
-    // 添加未在历史记录中的已连接设备
-    for (String device in _devices) {
-      if (!allDevices.contains(device)) {
-        allDevices.add(device);
-      }
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('ADB WiFi 连接器'),
@@ -389,9 +395,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
             const SizedBox(height: 20),
             Expanded(
               child: ListView.builder(
-                itemCount: allDevices.length,
+                itemCount: _history.length,
                 itemBuilder: (context, index) {
-                  final device = allDevices[index];
+                  final device = _history[index];
                   final bool isConnected = _devices.contains(device);
 
                   return ListTile(
