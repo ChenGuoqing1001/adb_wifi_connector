@@ -249,9 +249,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<void> _updateTrayMenu() async {
     List<MenuItemBase> items = [
-      MenuItemLabel(
-          label: '显示窗口', onClicked: (menuItem) => windowManager.show()),
-      MenuSeparator(),
       MenuItemLabel(label: '设备列表', enabled: false),
     ];
     // 添加所有设备到菜单
