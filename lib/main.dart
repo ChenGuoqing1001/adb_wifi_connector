@@ -129,7 +129,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
       if (await file.exists()) {
         final lines = await file.readAsLines();
         setState(() {
-          _history = lines.where((ip) => ip.trim().isNotEmpty).toList();
+          _history = lines
+              .where((ip) => ip.trim().isNotEmpty && ip.endsWith(':5555'))
+              .toList();
         });
         _autoConnectDevices();
       }
