@@ -187,6 +187,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     });
     for (String device in _devices) {
       if (!_history.contains(device)) {
+        await _adbService.open5555port(device);
         _history.add(device);
       }
     }
@@ -203,8 +204,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
       String iconPath = Platform.isWindows
           ? '$exeDir\\data\\flutter_assets\\assets\\app_icon.ico'
           : 'assets/app_icon.ico';
-
-      print('尝试加载图标: $iconPath'); // 调试用
 
       // 确保图标文件存在
       if (!await File(iconPath).exists()) {
@@ -280,28 +279,18 @@ class _HomePageState extends State<HomePage> with WindowListener {
     Future.doWhile(() async {
       await _updateDeviceList();
 
-      print('获取当前连接的设备...');
-
       // 检查设备IP并连接到ip:5555
       for (String device in _devices) {
         if (!device.endsWith(':5555')) {
-          print('处理设备: $device');
           try {
-            if (!_history.contains(device)) {
-              print('打开设备 $device 的5555端口...');
-              await _adbService.open5555port(device);
-            }
-
-            print('获取设备 $device 的IP地址...');
             final ips = await _adbService.getDeviceIps(device);
             if (ips != null && ips.isNotEmpty) {
-              print('获取到设备IP: $ips');
               for (final ip in ips) {
-                if (!_history.contains(device)) {
-                  print('跳过设备 $device,因为它不在已连接设备或历史记录中');
+                if (_history.contains(ip)) {
                   continue;
                 }
                 print('尝试连接到IP: $ip');
+                await _saveHistory(ip);
                 _adbService.connectDevice(ip);
                 print('成功连接到设备: $ip');
               }
@@ -311,8 +300,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
           } catch (e) {
             print('获取设备IP或连接失败: $device - $e');
           }
-        } else {
-          print('跳过已经是IP形式的设备: $device');
         }
       }
       await _updateDeviceList();
@@ -350,6 +337,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _removeFromHistory(String ip) async {
+    await _adbService.disconnectDevice(ip);
     setState(() {
       _history.remove(ip);
     });
