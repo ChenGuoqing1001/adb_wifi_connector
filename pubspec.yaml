@@ -22,4 +22,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/app_icon.ico 
+    - assets/app_icon.ico
+    - assets/adb/adb.exe
+    - assets/adb/AdbWinApi.dll
+    - assets/adb/AdbWinUsbApi.dll 
