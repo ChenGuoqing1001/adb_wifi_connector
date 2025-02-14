@@ -125,7 +125,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<void> _loadHistory() async {
     try {
-      final file = File('${Directory.current.path}/connection_history.txt');
+      final appDataPath = Platform.environment['APPDATA'];
+      final filePath = '$appDataPath\\ADB WiFi Connector\\connection_history.txt';
+      final file = File(filePath);
       if (await file.exists()) {
         final lines = await file.readAsLines();
         setState(() {
@@ -169,8 +171,18 @@ class _HomePageState extends State<HomePage> with WindowListener {
       }
     });
 
+    final appDataPath = Platform.environment['APPDATA'];
+    final directoryPath = '$appDataPath\\ADB WiFi Connector';
+    final filePath = '$directoryPath\\connection_history.txt';
+
+    // 确保目录存在
+    final directory = Directory(directoryPath);
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+
+    final file = File(filePath);
     try {
-      final file = File('${Directory.current.path}/connection_history.txt');
       await file.writeAsString(_history.join('\n'));
     } catch (e) {
       print('保存历史记录失败: $e');
@@ -340,7 +352,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
     setState(() {
       _history.remove(ip);
     });
-    final file = File('${Directory.current.path}/connection_history.txt');
+    final appDataPath = Platform.environment['APPDATA'];
+    final filePath = '$appDataPath\\ADB WiFi Connector\\connection_history.txt';
+    final file = File(filePath);
     await file.writeAsString(_history.join('\n'));
     await _updateTrayMenu();
   }
