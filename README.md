@@ -2,6 +2,11 @@
 
 一个基于 Flutter 开发的 ADB WiFi 连接工具，可以帮助开发者更方便地管理和连接 Android 设备。
 
+
+
+
+![jietu](https://github.com/user-attachments/assets/ab693773-cefa-448e-b606-116900a84b66)
+
 ## 主要功能
 
 - 支持通过 WiFi 连接 Android 设备进行调试
