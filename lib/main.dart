@@ -3,6 +3,9 @@ import 'package:window_manager/window_manager.dart';
 import 'package:system_tray/system_tray.dart';
 import 'services/adb_service.dart';
 import 'dart:io';
+import 'l10n/app_localizations.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +72,16 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
+      localizationsDelegates: const [
+        AppLocalizationsDelegate(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('zh'),
+      ],
       home: const HomePage(),
     );
   }
@@ -260,8 +273,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _updateTrayMenu() async {
+    final l10n = AppLocalizations(PlatformDispatcher.instance.locale ?? const Locale('zh'));
     List<MenuItemBase> items = [
-      MenuItemLabel(label: '设备列表', enabled: false),
+      MenuItemLabel(label: l10n.deviceList, enabled: false),
     ];
     // 添加所有设备到菜单
     for (String device in _history) {
@@ -279,7 +293,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
     items.addAll([
       MenuSeparator(),
-      MenuItemLabel(label: '退出', onClicked: (menuItem) => _quit()),
+      MenuItemLabel(label: l10n.exit, onClicked: (menuItem) => _quit()),
     ]);
 
     await _menu.buildFrom(items);
@@ -371,27 +385,28 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ADB WiFi 连接器'),
+        title: Text(l10n.appTitle),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Text('首次连接或重启手机之后需要用USB连接设备'),
+            Text(l10n.usbConnectionHint),
             const SizedBox(height: 20),
             TextField(
               controller: _ipController,
-              decoration: const InputDecoration(
-                labelText: '输入设备 IP 地址',
-                hintText: '例如: 192.168.1.100',
+              decoration: InputDecoration(
+                labelText: l10n.inputIpHint,
+                hintText: l10n.ipExample,
               ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _connectDevice,
-              child: const Text('连接设备'),
+              child: Text(l10n.connectDevice),
             ),
             const SizedBox(height: 20),
             Expanded(
@@ -403,7 +418,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
                   return ListTile(
                     title: Text(device),
-                    subtitle: Text(isConnected ? '已连接' : '未连接'),
+                    subtitle: Text(isConnected ? l10n.connected : l10n.disconnected),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -420,7 +435,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                           itemBuilder: (context) => [
                             PopupMenuItem<String>(
                               value: 'delete',
-                              child: const Text('删除'),
+                              child: Text(l10n.delete),
                             ),
                           ],
                           onSelected: (value) async {
