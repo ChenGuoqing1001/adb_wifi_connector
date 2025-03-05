@@ -13,8 +13,8 @@ class AppLocalizations {
     'en': {
       'appTitle': 'ADB WiFi Connector',
       'usbConnectionHint': 'USB connection required for first time or after device reboot',
-      'inputIpHint': 'Enter device IP address',
-      'ipExample': 'e.g. 192.168.1.100',
+      'inputIpHint': 'Enter device IP address and port',
+      'ipExample': 'e.g. 192.168.1.100:5555',
       'connectDevice': 'Connect Device',
       'connected': 'Connected',
       'disconnected': 'Disconnected',
@@ -25,8 +25,8 @@ class AppLocalizations {
     'zh': {
       'appTitle': 'ADB WiFi 连接器',
       'usbConnectionHint': '首次连接或重启手机之后需要用USB连接设备',
-      'inputIpHint': '输入设备 IP 地址',
-      'ipExample': '例如: 192.168.1.100',
+      'inputIpHint': '输入设备 IP 地址和端口',
+      'ipExample': '例如: 192.168.1.100:5555',
       'connectDevice': '连接设备',
       'connected': '已连接',
       'disconnected': '未连接',
