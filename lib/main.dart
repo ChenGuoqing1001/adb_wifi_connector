@@ -110,14 +110,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _initializeWithAutoConnect() async {
-    await _loadHistory();
     await _initializeAdb();
     await _initSystemTray();
-
-    // 启动时自动最小化到托盘
-    if (_history.isNotEmpty) {
-      await windowManager.hide();
-    }
+    _history = await _loadHistory();
+    await _autoConnectDevices();
   }
 
   @override
@@ -136,23 +132,22 @@ class _HomePageState extends State<HomePage> with WindowListener {
     windowManager.setPreventClose(true);
   }
 
-  Future<void> _loadHistory() async {
+  Future<List<String>> _loadHistory() async {
     try {
       final appDataPath = Platform.environment['APPDATA'];
-      final filePath = '$appDataPath\\ADB WiFi Connector\\connection_history.txt';
+      final filePath =
+          '$appDataPath\\ADB WiFi Connector\\connection_history.txt';
       final file = File(filePath);
       if (await file.exists()) {
         final lines = await file.readAsLines();
-        setState(() {
-          _history = lines
-              .where((ip) => ip.trim().isNotEmpty && ip.endsWith(':5555'))
-              .toList();
-        });
-        _autoConnectDevices();
+        return lines
+            .where((ip) => ip.trim().isNotEmpty && ip.endsWith(':5555'))
+            .toList();
       }
     } catch (e) {
       print('加载历史记录失败: $e');
     }
+    return [];
   }
 
   Future<void> _autoConnectDevices() async {
@@ -160,45 +155,52 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
     for (String ip in _history) {
       try {
-        await _adbService.connectDevice(ip);
+        _adbService.connectDevice(ip);
         print('自动连接设备: $ip');
       } catch (e) {
         print('自动连接设备失败: $ip - $e');
       }
-      // 添加短暂延迟，避免连接太快
-      await Future.delayed(const Duration(seconds: 1));
     }
 
     await _updateDeviceList();
   }
 
-  Future<void> _saveHistory(String ip) async {
+  Future<void> _saveHistory(
+      {required String ip, bool isWriteFile = true}) async {
+        
     if (ip.trim().isEmpty) return;
 
-    setState(() {
-      if (!_history.contains(ip)) {
-        _history.insert(0, ip);
-        if (_history.length > 10) {
-          _history.removeLast();
-        }
+    if (!_history.contains(ip)) {
+      _history.insert(0, ip);
+      if (_history.length > 10) {
+        _history.removeLast();
       }
-    });
-
-    final appDataPath = Platform.environment['APPDATA'];
-    final directoryPath = '$appDataPath\\ADB WiFi Connector';
-    final filePath = '$directoryPath\\connection_history.txt';
-
-    // 确保目录存在
-    final directory = Directory(directoryPath);
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
+      setState(() {});
     }
 
-    final file = File(filePath);
-    try {
-      await file.writeAsString(_history.join('\n'));
-    } catch (e) {
-      print('保存历史记录失败: $e');
+    if (isWriteFile) {
+      final List<String> _localHistory = await _loadHistory();
+      if (_localHistory.contains(ip)) return;
+      _localHistory.insert(0, ip);
+      if (_localHistory.length > 10) {
+        _localHistory.removeLast();
+      }
+      final appDataPath = Platform.environment['APPDATA'];
+      final directoryPath = '$appDataPath\\ADB WiFi Connector';
+      final filePath = '$directoryPath\\connection_history.txt';
+
+      // 确保目录存在
+      final directory = Directory(directoryPath);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+
+      final file = File(filePath);
+      try {
+        await file.writeAsString(_localHistory.join('\n'));
+      } catch (e) {
+        print('保存历史记录失败: $e');
+      }
     }
   }
 
@@ -213,9 +215,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
       // 更新状态
     });
     for (String device in _devices) {
+      _saveHistory(ip: device);
       if (!_history.contains(device)) {
         await _adbService.open5555port(device);
-        _history.add(device);
       }
     }
     await _updateTrayMenu();
@@ -273,7 +275,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _updateTrayMenu() async {
-    final l10n = AppLocalizations(PlatformDispatcher.instance.locale ?? const Locale('zh'));
+    final l10n = AppLocalizations(
+        PlatformDispatcher.instance.locale ?? const Locale('zh'));
     List<MenuItemBase> items = [
       MenuItemLabel(label: l10n.deviceList, enabled: false),
     ];
@@ -315,8 +318,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
                   continue;
                 }
                 print('尝试连接到IP: $ip');
-                await _saveHistory(ip);
                 _adbService.connectDevice(ip);
+                _saveHistory(ip: ip, isWriteFile: false);
                 print('成功连接到设备: $ip');
               }
             } else {
@@ -356,7 +359,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   Future<void> _connectDevice() async {
     if (_ipController.text.isNotEmpty) {
       await _adbService.connectDevice(_ipController.text);
-      await _saveHistory(_ipController.text);
+      await _saveHistory(ip: _ipController.text);
       await _updateDeviceList();
     }
   }
@@ -366,10 +369,12 @@ class _HomePageState extends State<HomePage> with WindowListener {
     setState(() {
       _history.remove(ip);
     });
+    List<String> _localHistory = await _loadHistory();
+    _localHistory.remove(ip);
     final appDataPath = Platform.environment['APPDATA'];
     final filePath = '$appDataPath\\ADB WiFi Connector\\connection_history.txt';
     final file = File(filePath);
-    await file.writeAsString(_history.join('\n'));
+    await file.writeAsString(_localHistory.join('\n'));
     await _updateTrayMenu();
   }
 
@@ -418,7 +423,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
                   return ListTile(
                     title: Text(device),
-                    subtitle: Text(isConnected ? l10n.connected : l10n.disconnected),
+                    subtitle:
+                        Text(isConnected ? l10n.connected : l10n.disconnected),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
