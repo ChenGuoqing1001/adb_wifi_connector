@@ -214,11 +214,11 @@ class _HomePageState extends State<HomePage> with WindowListener {
       // 更新状态
     });
     for (String device in _devices) {
-      _saveHistory(
-          ip: device, isWriteFile: !device.endsWith(':5555') ? false : true);
       if (!_history.contains(device)) {
         await _adbService.open5555port(device);
       }
+      _saveHistory(
+          ip: device, isWriteFile: !device.endsWith(':5555') ? false : true);
     }
     await _updateTrayMenu();
   }
