@@ -20,6 +20,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  msix: ^3.16.8
 
 flutter:
   uses-material-design: true
@@ -28,3 +29,10 @@ flutter:
     - assets/adb/adb.exe
     - assets/adb/AdbWinApi.dll
     - assets/adb/AdbWinUsbApi.dll 
+msix_config:
+  display_name: adb wifi connector
+  publisher_display_name: NodChan
+  identity_name: NodChan.adbwificonnector
+  msix_version: 1.1.8.0
+  logo_path: assets/app_icon.ico
+  # capabilities: internetClient, location, microphone, webcam
