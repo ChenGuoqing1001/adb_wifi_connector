@@ -36,6 +36,6 @@ msix_config:
   msix_version: 1.1.9.0
   logo_path: assets\app_icon.ico
   enable_at_startup: true
-  store: true #如果store: true（当前你的配置），这表示要发布到Microsoft Store，此时不会生成开发证书,如果是开发测试用途，应该设置为store: false
+  store: true #如果store: true（当前你的配置），这表示要发布到Microsoft Store，此时不会生成开发数字证书,如果是开发测试用途，应该设置为store: false
   publisher: CN=FD745275-0A7D-4275-A3E8-96892D1C2AA6
   # capabilities: internetClient, location, microphone, webcam
