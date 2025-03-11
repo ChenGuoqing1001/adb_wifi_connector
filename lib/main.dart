@@ -101,6 +101,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   List<String> _history = [];
   final TextEditingController _ipController = TextEditingController();
   List<String> _devices = [];
+  final Map<String, String> _deviceNames = {};
 
   @override
   void initState() {
@@ -210,9 +211,24 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<void> _updateDeviceList() async {
     _devices = await _adbService.getConnectedDevices();
+
+    // 只为未缓存的设备获取名称
+    for (String device in _devices) {
+      if (!_deviceNames.containsKey(device)) {
+        final name = await _adbService.getDeviceName(device);
+
+        if (name != null) {
+          setState(() {
+            _deviceNames[device] = name;
+          });
+        }
+      }
+    }
+
     setState(() {
       // 更新状态
     });
+
     for (String device in _devices) {
       if (!_history.contains(device)) {
         await _adbService.open5555port(device);
@@ -280,12 +296,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
     List<MenuItemBase> items = [
       MenuItemLabel(label: l10n.deviceList, enabled: false),
     ];
-    // 添加所有设备到菜单
+
     for (String device in _history) {
       final bool isConnected = _devices.contains(device);
+      final String displayName = _deviceNames[device] ?? device;
       items.add(
         MenuItemCheckbox(
-          label: device,
+          label: '$displayName ($device)',
           checked: isConnected,
           onClicked: (menuItem) async {
             await _toggleConnection(device, isConnected);
@@ -420,11 +437,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 itemBuilder: (context, index) {
                   final device = _history[index];
                   final bool isConnected = _devices.contains(device);
+                  final String deviceName = _deviceNames[device] ?? '';
 
                   return ListTile(
                     title: Text(device),
-                    subtitle:
-                        Text(isConnected ? l10n.connected : l10n.disconnected),
+                    subtitle: Text(isConnected
+                        ? '${l10n.connected}${deviceName.isNotEmpty ? ' - $deviceName' : ''}'
+                        : l10n.disconnected),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

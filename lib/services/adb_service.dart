@@ -90,4 +90,37 @@ class AdbService {
     }
     return [];
   }
+
+  Future<String?> getDeviceName(String deviceId) async {
+    try {
+      // 获取品牌名称
+      final brandResult = await Process.run(
+        'adb',
+        ['-s', deviceId, 'shell', 'getprop', 'ro.product.brand'],
+      );
+      
+      // 获取型号名称
+      final modelResult = await Process.run(
+        'adb',
+        ['-s', deviceId, 'shell', 'getprop', 'ro.product.model'],
+      );
+      
+      if (brandResult.exitCode == 0 && modelResult.exitCode == 0) {
+        String brand = brandResult.stdout.toString().trim();
+        String model = modelResult.stdout.toString().trim();
+        
+        // 组合品牌和型号
+        if (brand.isNotEmpty && model.isNotEmpty) {
+          return '$brand $model';
+        } else if (model.isNotEmpty) {
+          return model;
+        } else if (brand.isNotEmpty) {
+          return brand;
+        }
+      }
+    } catch (e) {
+      print('获取设备名称失败: $e');
+    }
+    return null;
+  }
 }
