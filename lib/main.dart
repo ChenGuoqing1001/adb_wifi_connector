@@ -432,18 +432,40 @@ class _HomePageState extends State<HomePage> with WindowListener {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
+              child: ListView.separated(
                 itemCount: _history.length,
+                separatorBuilder: (context, index) => const Divider(
+                  height: 1,
+                  thickness: 0.5,
+                ),
                 itemBuilder: (context, index) {
                   final device = _history[index];
                   final bool isConnected = _devices.contains(device);
                   final String deviceName = _deviceNames[device] ?? '';
 
                   return ListTile(
-                    title: Text(device),
-                    subtitle: Text(isConnected
-                        ? '${l10n.connected}${deviceName.isNotEmpty ? ' - $deviceName' : ''}'
-                        : l10n.disconnected),
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(device,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color:
+                                  Theme.of(context).textTheme.bodyLarge?.color,
+                            )),
+                        if (deviceName.isNotEmpty && isConnected)
+                          Text(
+                            deviceName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color:
+                                  Theme.of(context).textTheme.bodySmall?.color,
+                            ),
+                          ),
+                      ],
+                    ),
+                    subtitle:
+                        Text(isConnected ? l10n.connected : l10n.disconnected),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

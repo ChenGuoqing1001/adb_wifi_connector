@@ -105,18 +105,24 @@ class AdbService {
         ['-s', deviceId, 'shell', 'getprop', 'ro.product.model'],
       );
       
-      if (brandResult.exitCode == 0 && modelResult.exitCode == 0) {
+      // 获取Android版本
+      final androidVersionResult = await Process.run(
+        'adb',
+        ['-s', deviceId, 'shell', 'getprop', 'ro.build.version.release'],
+      );
+      
+      if (brandResult.exitCode == 0 && modelResult.exitCode == 0 && androidVersionResult.exitCode == 0) {
         String brand = brandResult.stdout.toString().trim();
         String model = modelResult.stdout.toString().trim();
+        String androidVersion = androidVersionResult.stdout.toString().trim();
         
-        // 组合品牌和型号
-        if (brand.isNotEmpty && model.isNotEmpty) {
-          return '$brand $model';
-        } else if (model.isNotEmpty) {
-          return model;
-        } else if (brand.isNotEmpty) {
-          return brand;
-        }
+        // 组合品牌、型号和Android版本
+        List<String> parts = [];
+        if (brand.isNotEmpty) parts.add(brand);
+        if (model.isNotEmpty) parts.add(model);
+        if (androidVersion.isNotEmpty) parts.add('Android $androidVersion');
+        
+        return parts.join(' ');
       }
     } catch (e) {
       print('获取设备名称失败: $e');
