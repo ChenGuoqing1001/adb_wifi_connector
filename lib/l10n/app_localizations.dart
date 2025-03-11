@@ -23,7 +23,7 @@ class AppLocalizations {
       'exit': 'Exit',
     },
     'zh': {
-      'appTitle': 'ADB WiFi 连接器',
+      'appTitle': 'ADB WiFi Connector',
       'usbConnectionHint': '首次连接或重启手机之后需要用USB连接设备',
       'inputIpHint': '输入设备 IP 地址和端口',
       'ipExample': '例如: 192.168.1.100:5555',

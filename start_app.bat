@@ -1,6 +1,6 @@
 @echo off
 set "startup_folder=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-set "shortcut_name=ADB WiFi连接器.lnk"
+set "shortcut_name=ADB WiFi Connector.lnk"
 set "app_path=%~dp0build\windows\runner\Release\adb_wifi_connector.exe"
 
 :: 创建快捷方式

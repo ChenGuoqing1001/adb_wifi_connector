@@ -8,8 +8,8 @@
   <Applications>
     <Application>
       <uap:VisualElements
-        DisplayName="ADB WiFi 连接器"
-        Description="ADB WiFi 连接器"
+        DisplayName="ADB WiFi Connector"
+        Description="ADB WiFi Connector"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\no_icon-Square150x150Logo.png"
         Square44x44Logo="Assets\no_icon-Square44x44Logo.png">

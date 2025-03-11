@@ -17,7 +17,7 @@ void main() async {
   WindowOptions windowOptions = const WindowOptions(
     size: Size(400, 600),
     center: true,
-    title: 'ADB WiFi 连接器',
+    title: 'ADB WiFi Connector',
     minimumSize: Size(400, 600),
   );
 
@@ -34,7 +34,7 @@ Future<void> setupAutoStart() async {
   if (Platform.isWindows) {
     final startupPath =
         '${Platform.environment['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup';
-    final shortcutPath = '$startupPath\\ADB WiFi连接器.lnk';
+    final shortcutPath = '$startupPath\\ADB WiFi Connector.lnk';
     final exePath =
         '${Directory.current.path}\\build\\windows\\runner\\Release\\adb_wifi_connector.exe';
 
@@ -68,7 +68,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ADB WiFi 连接器',
+      title: 'ADB WiFi Connector',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -266,13 +266,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
       // 重新初始化系统托盘
       await _systemTray.initSystemTray(
-        title: "ADB WiFi 连接器",
+        title: "ADB WiFi Connector",
         iconPath: iconPath,
       );
 
       // 确保图标显示
       await Future.delayed(const Duration(milliseconds: 500));
-      await _systemTray.setToolTip("ADB WiFi 连接器");
+      await _systemTray.setToolTip("ADB WiFi Connector");
       await _updateTrayMenu();
 
       // 注册事件处理

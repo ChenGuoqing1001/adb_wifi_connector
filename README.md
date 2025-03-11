@@ -1,4 +1,4 @@
-# ADB WiFi 连接器
+# ADB WiFi Connector
 
 一个基于 Flutter 开发的 ADB WiFi 连接工具，可以帮助开发者更方便地管理和连接 Android 设备。
 
