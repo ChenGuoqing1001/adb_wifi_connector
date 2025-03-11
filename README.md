@@ -5,7 +5,7 @@
 
 
 
-![jietu](https://github.com/user-attachments/assets/ab693773-cefa-448e-b606-116900a84b66)
+![image](https://github.com/user-attachments/assets/566a0201-feb7-458e-b00c-1e99c2d28591)
 
 ## 主要功能
 
