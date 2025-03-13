@@ -430,6 +430,16 @@ class _HomePageState extends State<HomePage> with WindowListener {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    
+    // 对历史记录进行排序，已连接的设备在前
+    final sortedHistory = List<String>.from(_history)
+      ..sort((a, b) {
+        final isAConnected = _devices.contains(a);
+        final isBConnected = _devices.contains(b);
+        if (isAConnected == isBConnected) return 0;
+        return isAConnected ? -1 : 1;
+      });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.appTitle),
@@ -455,13 +465,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
             const SizedBox(height: 20),
             Expanded(
               child: ListView.separated(
-                itemCount: _history.length,
+                itemCount: sortedHistory.length,  // 使用排序后的列表
                 separatorBuilder: (context, index) => const Divider(
                   height: 1,
                   thickness: 0.5,
                 ),
                 itemBuilder: (context, index) {
-                  final device = _history[index];
+                  final device = sortedHistory[index];  // 使用排序后的列表
                   final bool isConnected = _devices.contains(device);
                   final String deviceName = _deviceNames[device] ?? '';
 
