@@ -108,6 +108,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     super.initState();
     windowManager.addListener(this);
     _initializeWithAutoConnect();
+    _startDevicePolling();
   }
 
   Future<void> _initializeWithAutoConnect() async {
