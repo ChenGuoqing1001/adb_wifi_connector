@@ -245,49 +245,70 @@ class _HomePageState extends State<HomePage> with WindowListener {
       final exePath = Platform.resolvedExecutable;
       final exeDir = Directory(exePath).parent.path;
 
-      // 构建图标路径
       String iconPath = Platform.isWindows
           ? '$exeDir\\data\\flutter_assets\\assets\\app_icon.ico'
           : 'assets/app_icon.ico';
 
-      // 确保图标文件存在
       if (!await File(iconPath).exists()) {
-        print('图标文件不存在，尝试备用路径');
-        // 尝试备用路径
         iconPath = '$exeDir\\app_icon.ico';
         if (!await File(iconPath).exists()) {
-          print('备用图标文件也不存在: $iconPath');
+          print('图标文件不存在: $iconPath');
           return;
         }
       }
 
-      // 先销毁可能存在的旧实例
+      // 确保先销毁旧的系统托盘实例
       await _systemTray.destroy();
+      await Future.delayed(const Duration(milliseconds: 100));
 
-      // 重新初始化系统托盘
+      // 初始化新的系统托盘
       await _systemTray.initSystemTray(
         title: "ADB WiFi Connector",
         iconPath: iconPath,
+        toolTip: "ADB WiFi Connector", // 直接设置工具提示
       );
 
-      // 确保图标显示
-      await Future.delayed(const Duration(milliseconds: 500));
-      await _systemTray.setToolTip("ADB WiFi Connector");
+      // 更新菜单
       await _updateTrayMenu();
 
-      // 注册事件处理
-      _systemTray.registerSystemTrayEventHandler((eventName) {
-        if (eventName == kSystemTrayEventClick) {
-          windowManager.show();
-        } else if (eventName == kSystemTrayEventRightClick) {
-          _systemTray.popUpContextMenu();
+      // 使用更稳定的事件处理方式
+      _systemTray.registerSystemTrayEventHandler((eventName) async {
+        try {
+          if (eventName == kSystemTrayEventClick) {
+            await windowManager.show();
+          } else if (eventName == kSystemTrayEventRightClick) {
+            await _systemTray.popUpContextMenu();
+          }
+        } catch (e) {
+          print('系统托盘事件处理错误: $e');
+          // 尝试重新初始化系统托盘
+          await _initSystemTray();
         }
       });
 
-      _startDevicePolling();
+      // 添加定期检查系统托盘状态
+      _startTrayHealthCheck();
     } catch (e) {
       print('初始化系统托盘失败: $e');
+      // 延迟后重试
+      await Future.delayed(const Duration(seconds: 1));
+      await _initSystemTray();
     }
+  }
+
+  void _startTrayHealthCheck() {
+    Future.doWhile(() async {
+      try {
+        // 每30分钟检查一次系统托盘状态
+        await Future.delayed(const Duration(minutes: 30));
+        await _systemTray.setToolTip("ADB WiFi Connector");
+      } catch (e) {
+        print('系统托盘状态检查失败: $e');
+        // 如果检查失败，重新初始化系统托盘
+        await _initSystemTray();
+      }
+      return true;
+    });
   }
 
   Future<void> _updateTrayMenu() async {
