@@ -6,6 +6,7 @@ import 'dart:io';
 import 'l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +44,7 @@ Future<void> setupAutoStart() async {
 
   try {
     if (!await File(exePath).exists()) {
-      print('未找到可执行文件，跳过开机自启动: $exePath');
+      logWithTime('未找到可执行文件，跳过开机自启动: $exePath');
       return;
     }
 
@@ -69,10 +70,10 @@ Future<void> setupAutoStart() async {
     ]);
 
     if (result.exitCode != 0) {
-      print('创建开机自启动快捷方式失败: ${result.stderr}');
+      logWithTime('创建开机自启动快捷方式失败: ${result.stderr}');
     }
   } catch (e) {
-    print('设置开机自启动失败: $e');
+    logWithTime('设置开机自启动失败: $e');
   }
 }
 
@@ -179,7 +180,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
         return ips;
       }
     } catch (e) {
-      print('加载历史记录失败: $e');
+      logWithTime('加载历史记录失败: $e');
     }
     return [];
   }
@@ -191,9 +192,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
       if (!(_autoReconnect[ip] ?? true)) continue;
       try {
         _adbService.connectDevice(ip);
-        print('自动连接设备: $ip');
+        logWithTime('自动连接设备: $ip');
       } catch (e) {
-        print('自动连接设备失败: $ip - $e');
+        logWithTime('自动连接设备失败: $ip - $e');
       }
     }
 
@@ -240,7 +241,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     try {
       await file.writeAsString(lines.join('\n'));
     } catch (e) {
-      print('保存历史记录失败: $e');
+      logWithTime('保存历史记录失败: $e');
     }
   }
 
@@ -302,7 +303,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
       if (!await File(iconPath).exists()) {
         iconPath = '$exeDir\\app_icon.ico';
         if (!await File(iconPath).exists()) {
-          print('图标文件不存在: $iconPath');
+          logWithTime('图标文件不存在: $iconPath');
           return;
         }
       }
@@ -330,7 +331,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
             await _systemTray.popUpContextMenu();
           }
         } catch (e) {
-          print('系统托盘事件处理错误: $e');
+          logWithTime('系统托盘事件处理错误: $e');
           // 尝试重新初始化系统托盘
           await _initSystemTray();
         }
@@ -339,7 +340,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
       // 添加定期检查系统托盘状态
       _startTrayHealthCheck();
     } catch (e) {
-      print('初始化系统托盘失败: $e');
+      logWithTime('初始化系统托盘失败: $e');
       // 延迟后重试
       await Future.delayed(const Duration(seconds: 1));
       await _initSystemTray();
@@ -353,7 +354,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
         await Future.delayed(const Duration(minutes: 30));
         await _systemTray.setToolTip("ADB WiFi Connector");
       } catch (e) {
-        print('系统托盘状态检查失败: $e');
+        logWithTime('系统托盘状态检查失败: $e');
         // 如果检查失败，重新初始化系统托盘
         await _initSystemTray();
       }
@@ -416,25 +417,25 @@ class _HomePageState extends State<HomePage> with WindowListener {
       for (String device in _devices) {
         if (!device.endsWith(':5555')) {
           try {
-            final ips = await _adbService.getDeviceIps(device);
-            if (ips != null && ips.isNotEmpty) {
-              for (final ip in ips) {
-                if (_history.contains(ip)) {
-                  continue;
+              final ips = await _adbService.getDeviceIps(device);
+              if (ips != null && ips.isNotEmpty) {
+                for (final ip in ips) {
+                  if (_history.contains(ip)) {
+                    continue;
+                  }
+                  logWithTime('尝试连接到IP: $ip');
+                  _adbService.connectDevice(ip);
+                  _saveHistory(ip: ip, isWriteFile: false);
+                  logWithTime('成功连接到设备: $ip');
                 }
-                print('尝试连接到IP: $ip');
-                _adbService.connectDevice(ip);
-                _saveHistory(ip: ip, isWriteFile: false);
-                print('成功连接到设备: $ip');
+              } else {
+                logWithTime('未获取到设备 $device 的IP地址');
               }
-            } else {
-              print('未获取到设备 $device 的IP地址');
+            } catch (e) {
+              logWithTime('获取设备IP或连接失败: $device - $e');
             }
-          } catch (e) {
-            print('获取设备IP或连接失败: $device - $e');
           }
         }
-      }
       await _updateDeviceList();
       await _attemptAutoReconnect();
 
@@ -459,9 +460,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
       _lastReconnectAttempt[ip] = now;
       try {
         await _adbService.connectDevice(ip);
-        print('尝试自动重连: $ip');
+        logWithTime('尝试自动重连: $ip');
       } catch (e) {
-        print('自动重连失败: $ip - $e');
+        logWithTime('自动重连失败: $ip - $e');
       }
     }
   }
@@ -479,7 +480,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
       // 强制退出程序
       exit(0);
     } catch (e) {
-      print('退出程序失败: $e');
+      logWithTime('退出程序失败: $e');
       // 确保程序退出
       exit(1);
     }

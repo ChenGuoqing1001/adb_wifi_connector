@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import '../utils/logger.dart';
 
 class AdbService {
   static String? _adbPath;
@@ -30,7 +31,7 @@ class AdbService {
       final adbPath = await getAdbPath();
       await Process.run(adbPath, ['start-server']);
     } catch (e) {
-      print('启动 ADB 服务器失败: $e');
+      logWithTime('启动 ADB 服务器失败: $e');
     }
   }
 
@@ -45,7 +46,7 @@ class AdbService {
           .map((line) => line.split('\t')[0])
           .toList();
     } catch (e) {
-      print('获取设备列表失败: $e');
+      logWithTime('获取设备列表失败: $e');
       return [];
     }
   }
@@ -55,7 +56,7 @@ class AdbService {
       final adbPath = await getAdbPath();
       await Process.run(adbPath, ['connect', ip]);
     } catch (e) {
-      print('连接设备失败: $e');
+      logWithTime('连接设备失败: $e');
     }
   }
 
@@ -64,7 +65,7 @@ class AdbService {
       final adbPath = await getAdbPath();
       await Process.run(adbPath, ['-s', device, 'tcpip', '5555']);
     } catch (e) {
-      print('打开5555端口失败: $e');
+      logWithTime('打开5555端口失败: $e');
     }
   }
 
@@ -73,7 +74,7 @@ class AdbService {
       final adbPath = await getAdbPath();
       await Process.run(adbPath, ['disconnect', ip]);
     } catch (e) {
-      print('断开设备失败: $e');
+      logWithTime('断开设备失败: $e');
     }
   }
 
@@ -86,7 +87,7 @@ class AdbService {
           .allMatches(result.stdout.toString());
       return matches.map((match) => '${match.group(1)}:5555').toList();
     } catch (e) {
-      print('获取设备IP失败: $e');
+      logWithTime('获取设备IP失败: $e');
     }
     return [];
   }
@@ -125,7 +126,7 @@ class AdbService {
         return parts.join(' ');
       }
     } catch (e) {
-      print('获取设备名称失败: $e');
+      logWithTime('获取设备名称失败: $e');
     }
     return null;
   }
