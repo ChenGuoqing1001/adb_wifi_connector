@@ -102,6 +102,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   final TextEditingController _ipController = TextEditingController();
   List<String> _devices = [];
   final Map<String, String> _deviceNames = {};
+  String? _lastTrayMenuSignature;
 
   @override
   void initState() {
@@ -315,6 +316,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
   Future<void> _updateTrayMenu() async {
     final l10n = AppLocalizations(
         PlatformDispatcher.instance.locale ?? const Locale('zh'));
+
+    final String currentSignature = _buildTraySignature();
+    if (_lastTrayMenuSignature == currentSignature) {
+      return;
+    }
+    _lastTrayMenuSignature = currentSignature;
+
     List<MenuItemBase> items = [
       MenuItemLabel(label: l10n.deviceList, enabled: false),
     ];
@@ -340,6 +348,16 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
     await _menu.buildFrom(items);
     await _systemTray.setContextMenu(_menu);
+  }
+
+  String _buildTraySignature() {
+    final buffer = StringBuffer();
+    for (final device in _history) {
+      final name = _deviceNames[device] ?? '';
+      final bool isConnected = _devices.contains(device);
+      buffer.write('$device|$name|$isConnected;');
+    }
+    return buffer.toString();
   }
 
   void _startDevicePolling() {
