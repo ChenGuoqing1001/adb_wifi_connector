@@ -31,34 +31,48 @@ void main() async {
 
 // 添加开机自启动相关函数
 Future<void> setupAutoStart() async {
-  if (Platform.isWindows) {
-    final startupPath =
-        '${Platform.environment['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup';
-    final shortcutPath = '$startupPath\\ADB WiFi Connector.lnk';
-    final exePath =
-        '${Directory.current.path}\\build\\windows\\runner\\Release\\adb_wifi_connector.exe';
+  if (!Platform.isWindows) return;
 
-    try {
-      final shortcut = File(shortcutPath);
-      if (!await shortcut.exists()) {
-        // 创建快捷方式
-        final result = await Process.run('powershell', [
-          '-Command',
-          '''
-          \$WS = New-Object -ComObject WScript.Shell;
-          \$SC = \$WS.CreateShortcut('$shortcutPath');
-          \$SC.TargetPath = '$exePath';
-          \$SC.Save();
-          '''
-        ]);
+  final appData = Platform.environment['APPDATA'];
+  if (appData == null) return;
 
-        if (result.exitCode != 0) {
-          print('创建开机自启动快捷方式失败: ${result.stderr}');
-        }
-      }
-    } catch (e) {
-      print('设置开机自启动失败: $e');
+  final startupPath =
+      '$appData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup';
+  final shortcutPath = '$startupPath\\ADB WiFi Connector.lnk';
+  final exePath = Platform.resolvedExecutable;
+
+  try {
+    if (!await File(exePath).exists()) {
+      print('未找到可执行文件，跳过开机自启动: $exePath');
+      return;
     }
+
+    final startupDir = Directory(startupPath);
+    if (!await startupDir.exists()) {
+      await startupDir.create(recursive: true);
+    }
+
+    final exeDir = File(exePath).parent.path;
+    final sanitizedShortcutPath = shortcutPath.replaceAll("'", "''");
+    final sanitizedExePath = exePath.replaceAll("'", "''");
+    final sanitizedExeDir = exeDir.replaceAll("'", "''");
+    final result = await Process.run('powershell', [
+      '-NoProfile',
+      '-Command',
+      '''
+      \$WS = New-Object -ComObject WScript.Shell;
+      \$SC = \$WS.CreateShortcut('$sanitizedShortcutPath');
+      \$SC.TargetPath = '$sanitizedExePath';
+      \$SC.WorkingDirectory = '$sanitizedExeDir';
+      \$SC.Save();
+      '''
+    ]);
+
+    if (result.exitCode != 0) {
+      print('创建开机自启动快捷方式失败: ${result.stderr}');
+    }
+  } catch (e) {
+    print('设置开机自启动失败: $e');
   }
 }
 
@@ -103,6 +117,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
   List<String> _devices = [];
   final Map<String, String> _deviceNames = {};
   String? _lastTrayMenuSignature;
+  final Map<String, bool> _autoReconnect = {};
+  final Map<String, DateTime> _lastReconnectAttempt = {};
+  final Duration _autoReconnectInterval = const Duration(seconds: 30);
 
   @override
   void initState() {
@@ -136,6 +153,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<List<String>> _loadHistory() async {
+    _autoReconnect.clear();
     try {
       final appDataPath = Platform.environment['APPDATA'];
       final filePath =
@@ -143,9 +161,22 @@ class _HomePageState extends State<HomePage> with WindowListener {
       final file = File(filePath);
       if (await file.exists()) {
         final lines = await file.readAsLines();
-        return lines
-            .where((ip) => ip.trim().isNotEmpty && ip.endsWith(':5555'))
-            .toList();
+        final List<String> ips = [];
+
+        for (final line in lines) {
+          if (line.trim().isEmpty) continue;
+          final parts = line.split('|');
+          final ip = parts.first.trim();
+          if (ip.isEmpty || !ip.endsWith(':5555')) continue;
+
+          final autoReconnectRaw =
+              parts.length > 1 ? parts[1].trim().toLowerCase() : '1';
+          final autoReconnect =
+              autoReconnectRaw == '1' || autoReconnectRaw == 'true';
+          _autoReconnect[ip] = autoReconnect;
+          ips.add(ip);
+        }
+        return ips;
       }
     } catch (e) {
       print('加载历史记录失败: $e');
@@ -157,6 +188,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     if (_history.isEmpty) return;
 
     for (String ip in _history) {
+      if (!(_autoReconnect[ip] ?? true)) continue;
       try {
         _adbService.connectDevice(ip);
         print('自动连接设备: $ip');
@@ -177,33 +209,49 @@ class _HomePageState extends State<HomePage> with WindowListener {
       if (_history.length > 10) {
         _history.removeLast();
       }
+      _autoReconnect.putIfAbsent(ip, () => true);
       setState(() {});
     }
 
     if (isWriteFile) {
-      final List<String> _localHistory = await _loadHistory();
-      if (_localHistory.contains(ip)) return;
-      _localHistory.insert(0, ip);
-      if (_localHistory.length > 10) {
-        _localHistory.removeLast();
-      }
-      final appDataPath = Platform.environment['APPDATA'];
-      final directoryPath = '$appDataPath\\ADB WiFi Connector';
-      final filePath = '$directoryPath\\connection_history.txt';
-
-      // 确保目录存在
-      final directory = Directory(directoryPath);
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
-      }
-
-      final file = File(filePath);
-      try {
-        await file.writeAsString(_localHistory.join('\n'));
-      } catch (e) {
-        print('保存历史记录失败: $e');
-      }
+      await _writeHistoryToFile();
     }
+  }
+
+  Future<void> _writeHistoryToFile() async {
+    final appDataPath = Platform.environment['APPDATA'];
+    final directoryPath = '$appDataPath\\ADB WiFi Connector';
+    final filePath = '$directoryPath\\connection_history.txt';
+
+    // 确保目录存在
+    final directory = Directory(directoryPath);
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+
+    final lines = <String>[];
+    for (final ip in _history) {
+      if (ip.trim().isEmpty || !ip.endsWith(':5555')) continue;
+      final autoReconnectFlag = _autoReconnect[ip] ?? true;
+      lines.add('$ip|${autoReconnectFlag ? 1 : 0}');
+    }
+
+    final file = File(filePath);
+    try {
+      await file.writeAsString(lines.join('\n'));
+    } catch (e) {
+      print('保存历史记录失败: $e');
+    }
+  }
+
+  Future<void> _updateAutoReconnect(String ip, bool enabled) async {
+    setState(() {
+      _autoReconnect[ip] = enabled;
+      if (!enabled) {
+        _lastReconnectAttempt.remove(ip);
+      }
+    });
+    await _writeHistoryToFile();
   }
 
   Future<void> _initializeAdb() async {
@@ -388,10 +436,34 @@ class _HomePageState extends State<HomePage> with WindowListener {
         }
       }
       await _updateDeviceList();
+      await _attemptAutoReconnect();
 
       await Future.delayed(const Duration(seconds: 5));
       return true;
     });
+  }
+
+  Future<void> _attemptAutoReconnect() async {
+    final now = DateTime.now();
+    for (final ip in _history) {
+      if (!ip.endsWith(':5555')) continue;
+      if (!(_autoReconnect[ip] ?? true)) continue;
+      if (_devices.contains(ip)) continue;
+
+      final lastAttempt = _lastReconnectAttempt[ip];
+      if (lastAttempt != null &&
+          now.difference(lastAttempt) < _autoReconnectInterval) {
+        continue;
+      }
+
+      _lastReconnectAttempt[ip] = now;
+      try {
+        await _adbService.connectDevice(ip);
+        print('尝试自动重连: $ip');
+      } catch (e) {
+        print('自动重连失败: $ip - $e');
+      }
+    }
   }
 
   Future<void> _quit() async {
@@ -425,13 +497,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
     await _adbService.disconnectDevice(ip);
     setState(() {
       _history.remove(ip);
+      _autoReconnect.remove(ip);
+      _lastReconnectAttempt.remove(ip);
     });
-    List<String> _localHistory = await _loadHistory();
-    _localHistory.remove(ip);
-    final appDataPath = Platform.environment['APPDATA'];
-    final filePath = '$appDataPath\\ADB WiFi Connector\\connection_history.txt';
-    final file = File(filePath);
-    await file.writeAsString(_localHistory.join('\n'));
+    await _writeHistoryToFile();
     await _updateTrayMenu();
   }
 
@@ -492,6 +561,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                   final device = sortedHistory[index];  // 使用排序后的列表
                   final bool isConnected = _devices.contains(device);
                   final String deviceName = _deviceNames[device] ?? '';
+                  final bool autoReconnect = _autoReconnect[device] ?? true;
 
                   return ListTile(
                     title: Column(
@@ -531,6 +601,11 @@ class _HomePageState extends State<HomePage> with WindowListener {
                         PopupMenuButton<String>(
                           itemBuilder: (context) => [
                             PopupMenuItem<String>(
+                              value: 'toggle_auto_reconnect',
+                              child: Text(
+                                  autoReconnect ? '关闭自动重连' : '开启自动重连'),
+                            ),
+                            PopupMenuItem<String>(
                               value: 'delete',
                               child: Text(l10n.delete),
                             ),
@@ -538,6 +613,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
                           onSelected: (value) async {
                             if (value == 'delete') {
                               await _removeFromHistory(device);
+                            } else if (value == 'toggle_auto_reconnect') {
+                              await _updateAutoReconnect(
+                                  device, !autoReconnect);
                             }
                           },
                         ),
