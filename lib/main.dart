@@ -117,10 +117,11 @@ class _HomePageState extends State<HomePage> with WindowListener {
   final TextEditingController _ipController = TextEditingController();
   List<String> _devices = [];
   final Map<String, String> _deviceNames = {};
+  bool _isTrayInitialized = false;
   String? _lastTrayMenuSignature;
   final Map<String, bool> _autoReconnect = {};
   final Map<String, DateTime> _lastReconnectAttempt = {};
-  final Duration _autoReconnectInterval = const Duration(seconds: 30);
+  final Duration _autoReconnectInterval = const Duration(seconds: 20);
 
   @override
   void initState() {
@@ -291,6 +292,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _initSystemTray() async {
+    _isTrayInitialized = false;
+    // 重新初始化时强制让菜单重建
+    _lastTrayMenuSignature = null;
     try {
       // 获取可执行文件所在目录
       final exePath = Platform.resolvedExecutable;
@@ -319,6 +323,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
         toolTip: "ADB WiFi Connector", // 直接设置工具提示
       );
 
+      _isTrayInitialized = true;
+
       // 更新菜单
       await _updateTrayMenu();
 
@@ -340,6 +346,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
       // 添加定期检查系统托盘状态
       _startTrayHealthCheck();
     } catch (e) {
+      _isTrayInitialized = false;
       logWithTime('初始化系统托盘失败: $e');
       // 延迟后重试
       await Future.delayed(const Duration(seconds: 1));
@@ -363,6 +370,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _updateTrayMenu() async {
+    if (!_isTrayInitialized) {
+      return;
+    }
+
     final l10n = AppLocalizations(
         PlatformDispatcher.instance.locale ?? const Locale('zh'));
 
@@ -370,33 +381,37 @@ class _HomePageState extends State<HomePage> with WindowListener {
     if (_lastTrayMenuSignature == currentSignature) {
       return;
     }
-    _lastTrayMenuSignature = currentSignature;
+    try {
+      List<MenuItemBase> items = [
+        MenuItemLabel(label: l10n.deviceList, enabled: false),
+      ];
 
-    List<MenuItemBase> items = [
-      MenuItemLabel(label: l10n.deviceList, enabled: false),
-    ];
+      for (String device in _history) {
+        final bool isConnected = _devices.contains(device);
+        final String displayName = _deviceNames[device] ?? device;
+        items.add(
+          MenuItemCheckbox(
+            label: '$displayName ($device)',
+            checked: isConnected,
+            onClicked: (menuItem) async {
+              await _toggleConnection(device, isConnected);
+            },
+          ),
+        );
+      }
 
-    for (String device in _history) {
-      final bool isConnected = _devices.contains(device);
-      final String displayName = _deviceNames[device] ?? device;
-      items.add(
-        MenuItemCheckbox(
-          label: '$displayName ($device)',
-          checked: isConnected,
-          onClicked: (menuItem) async {
-            await _toggleConnection(device, isConnected);
-          },
-        ),
-      );
+      items.addAll([
+        MenuSeparator(),
+        MenuItemLabel(label: l10n.exit, onClicked: (menuItem) => _quit()),
+      ]);
+
+      await _menu.buildFrom(items);
+      await _systemTray.setContextMenu(_menu);
+      _lastTrayMenuSignature = currentSignature;
+    } catch (e) {
+      _lastTrayMenuSignature = null;
+      logWithTime('更新系统托盘菜单失败: $e');
     }
-
-    items.addAll([
-      MenuSeparator(),
-      MenuItemLabel(label: l10n.exit, onClicked: (menuItem) => _quit()),
-    ]);
-
-    await _menu.buildFrom(items);
-    await _systemTray.setContextMenu(_menu);
   }
 
   String _buildTraySignature() {
