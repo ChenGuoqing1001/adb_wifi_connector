@@ -156,6 +156,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<List<String>> _loadHistory() async {
     _autoReconnect.clear();
+    _deviceNames.clear();
     try {
       final appDataPath = Platform.environment['APPDATA'];
       final filePath =
@@ -176,6 +177,12 @@ class _HomePageState extends State<HomePage> with WindowListener {
           final autoReconnect =
               autoReconnectRaw == '1' || autoReconnectRaw == 'true';
           _autoReconnect[ip] = autoReconnect;
+          if (parts.length > 2) {
+            final savedName = parts.sublist(2).join('|').trim();
+            if (savedName.isNotEmpty) {
+              _deviceNames[ip] = savedName;
+            }
+          }
           ips.add(ip);
         }
         return ips;
@@ -203,15 +210,21 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _saveHistory(
-      {required String ip, bool isWriteFile = true}) async {
-    if (ip.trim().isEmpty) return;
+      {required String ip, bool isWriteFile = true, String? name}) async {
+    final trimmedIp = ip.trim();
+    if (trimmedIp.isEmpty) return;
 
-    if (!_history.contains(ip)) {
-      _history.insert(0, ip);
+    final trimmedName = name?.trim();
+    if (trimmedName != null && trimmedName.isNotEmpty) {
+      _deviceNames[trimmedIp] = trimmedName;
+    }
+
+    if (!_history.contains(trimmedIp)) {
+      _history.insert(0, trimmedIp);
       if (_history.length > 10) {
         _history.removeLast();
       }
-      _autoReconnect.putIfAbsent(ip, () => true);
+      _autoReconnect.putIfAbsent(trimmedIp, () => true);
       setState(() {});
     }
 
@@ -235,7 +248,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
     for (final ip in _history) {
       if (ip.trim().isEmpty || !ip.endsWith(':5555')) continue;
       final autoReconnectFlag = _autoReconnect[ip] ?? true;
-      lines.add('$ip|${autoReconnectFlag ? 1 : 0}');
+      final deviceName =
+          _deviceNames[ip]?.replaceAll('\n', ' ').replaceAll('|', '/') ?? '';
+      final base = '$ip|${autoReconnectFlag ? 1 : 0}';
+      lines.add(deviceName.isEmpty ? base : '$base|$deviceName');
     }
 
     final file = File(filePath);
@@ -285,8 +301,12 @@ class _HomePageState extends State<HomePage> with WindowListener {
       if (!_history.contains(device)) {
         await _adbService.open5555port(device);
       }
+      final deviceName = _deviceNames[device];
       _saveHistory(
-          ip: device, isWriteFile: !device.endsWith(':5555') ? false : true);
+        ip: device,
+        name: deviceName,
+        isWriteFile: device.endsWith(':5555'),
+      );
     }
     await _updateTrayMenu();
   }
@@ -589,7 +609,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                               color:
                                   Theme.of(context).textTheme.bodyLarge?.color,
                             )),
-                        if (deviceName.isNotEmpty && isConnected)
+                        if (deviceName.isNotEmpty)
                           Text(
                             deviceName,
                             style: TextStyle(
