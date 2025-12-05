@@ -199,8 +199,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
     for (String ip in _history) {
       if (!(_autoReconnect[ip] ?? true)) continue;
       try {
-        _adbService.connectDevice(ip);
         logWithTime('自动连接设备: $ip');
+        final success = await _adbService.connectDevice(ip);
+        if (success) {
+          logWithTime('自动连接成功: $ip');
+        } else {
+          logWithTime('自动连接失败: $ip');
+        }
       } catch (e) {
         logWithTime('自动连接设备失败: $ip - $e');
       }
@@ -273,12 +278,21 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> _initializeAdb() async {
-    await _adbService.startAdbServer();
-    _updateDeviceList();
+    final started = await _adbService.startAdbServer();
+    if (started) {
+      logWithTime('ADB 服务器启动完成');
+    } else {
+      logWithTime('ADB 服务器启动异常，请检查后续命令输出');
+    }
+    await _updateDeviceList();
   }
 
   Future<void> _updateDeviceList() async {
+    final previousDevices = List<String>.from(_devices);
     _devices = await _adbService.getConnectedDevices();
+    if (!listEquals(previousDevices, _devices)) {
+      logWithTime('设备列表更新: ${_devices.join(', ')}');
+    }
 
     // 只为未缓存的设备获取名称
     for (String device in _devices) {
@@ -299,7 +313,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
     for (String device in _devices) {
       if (!_history.contains(device)) {
-        await _adbService.open5555port(device);
+        final opened = await _adbService.open5555port(device);
+        if (!opened) {
+          logWithTime('请求设备 $device 开启 5555 端口失败');
+        }
       }
       final deviceName = _deviceNames[device];
       _saveHistory(
@@ -452,25 +469,29 @@ class _HomePageState extends State<HomePage> with WindowListener {
       for (String device in _devices) {
         if (!device.endsWith(':5555')) {
           try {
-              final ips = await _adbService.getDeviceIps(device);
-              if (ips != null && ips.isNotEmpty) {
-                for (final ip in ips) {
-                  if (_history.contains(ip)) {
-                    continue;
-                  }
-                  logWithTime('尝试连接到IP: $ip');
-                  _adbService.connectDevice(ip);
+            final ips = await _adbService.getDeviceIps(device);
+            if (ips.isNotEmpty) {
+              for (final ip in ips) {
+                if (_history.contains(ip)) {
+                  continue;
+                }
+                logWithTime('尝试连接到IP: $ip (来自 $device)');
+                final connected = await _adbService.connectDevice(ip);
+                if (connected) {
                   _saveHistory(ip: ip, isWriteFile: false);
                   logWithTime('成功连接到设备: $ip');
+                } else {
+                  logWithTime('连接设备失败: $ip');
                 }
-              } else {
-                logWithTime('未获取到设备 $device 的IP地址');
               }
-            } catch (e) {
-              logWithTime('获取设备IP或连接失败: $device - $e');
+            } else {
+              logWithTime('未获取到设备 $device 的IP地址');
             }
+          } catch (e) {
+            logWithTime('获取设备IP或连接失败: $device - $e');
           }
         }
+      }
       await _updateDeviceList();
       await _attemptAutoReconnect();
 
@@ -494,8 +515,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
       _lastReconnectAttempt[ip] = now;
       try {
-        await _adbService.connectDevice(ip);
         logWithTime('尝试自动重连: $ip');
+        final success = await _adbService.connectDevice(ip);
+        logWithTime(success ? '自动重连成功: $ip' : '自动重连失败: $ip');
       } catch (e) {
         logWithTime('自动重连失败: $ip - $e');
       }
@@ -523,9 +545,12 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   Future<void> _connectDevice() async {
     if (_ipController.text.isNotEmpty) {
-      await _adbService.connectDevice(_ipController.text);
+      final success = await _adbService.connectDevice(_ipController.text);
       await _saveHistory(ip: _ipController.text);
       await _updateDeviceList();
+      if (!success) {
+        logWithTime('手动连接失败: ${_ipController.text}');
+      }
     }
   }
 
